@@ -15,4 +15,5 @@
 *.csv
 
 /volume*
-/wallet*
+/wallets*.json
+/wallets*.csv
