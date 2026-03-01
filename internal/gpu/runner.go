@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/planxnx/ethereum-wallet-generator/wallets"
@@ -66,12 +67,13 @@ func (r *Runner) Next() (*wallets.Wallet, error) {
 	select {
 	case w, ok := <-r.walletCh:
 		if !ok {
+			// Give wait() a short window to publish the real process exit error.
 			select {
 			case err := <-r.errCh:
 				if err != nil {
 					return nil, fmt.Errorf("gpu wallet stream closed: %w%s", err, r.stderrSuffix())
 				}
-			default:
+			case <-time.After(250 * time.Millisecond):
 			}
 			return nil, fmt.Errorf("gpu wallet stream closed%s", r.stderrSuffix())
 		}
@@ -110,6 +112,9 @@ func (r *Runner) readStdout() {
 
 		r.walletCh <- w
 	}
+	if err := sc.Err(); err != nil {
+		r.pushErr(fmt.Errorf("gpu stdout scan: %w", err))
+	}
 	close(r.walletCh)
 }
 
@@ -140,6 +145,9 @@ func (r *Runner) readStderr(stderr io.ReadCloser) {
 		}
 		r.stderrMu.Unlock()
 	}
+	if err := sc.Err(); err != nil {
+		r.pushErr(fmt.Errorf("gpu stderr scan: %w", err))
+	}
 }
 
 func (r *Runner) stderrSuffix() string {
@@ -152,7 +160,14 @@ func (r *Runner) stderrSuffix() string {
 }
 
 func (r *Runner) wait() {
-	r.errCh <- r.cmd.Wait()
+	r.pushErr(r.cmd.Wait())
+}
+
+func (r *Runner) pushErr(err error) {
+	select {
+	case r.errCh <- err:
+	default:
+	}
 }
 
 func parseWalletLine(line string) (*wallets.Wallet, error) {
