@@ -22,6 +22,8 @@ type Runner struct {
 	walletCh  chan *wallets.Wallet
 	errCh     chan error
 	closeOnce sync.Once
+	stderrMu  sync.Mutex
+	stderrLog []string
 }
 
 // NewRunner starts an external GPU worker process that continuously prints wallets to stdout.
@@ -63,14 +65,21 @@ func (r *Runner) Next() (*wallets.Wallet, error) {
 	select {
 	case w, ok := <-r.walletCh:
 		if !ok {
-			return nil, fmt.Errorf("gpu wallet stream closed")
+			select {
+			case err := <-r.errCh:
+				if err != nil {
+					return nil, fmt.Errorf("gpu wallet stream closed: %w%s", err, r.stderrSuffix())
+				}
+			default:
+			}
+			return nil, fmt.Errorf("gpu wallet stream closed%s", r.stderrSuffix())
 		}
 		return w, nil
 	case err := <-r.errCh:
 		if err == nil {
-			return nil, fmt.Errorf("gpu process exited")
+			return nil, fmt.Errorf("gpu process exited%s", r.stderrSuffix())
 		}
-		return nil, err
+		return nil, fmt.Errorf("%w%s", err, r.stderrSuffix())
 	}
 }
 
@@ -105,7 +114,22 @@ func (r *Runner) readStderr(stderr io.ReadCloser) {
 	// Drain stderr to prevent child process from blocking when stderr buffer is full.
 	sc := bufio.NewScanner(stderr)
 	for sc.Scan() {
+		r.stderrMu.Lock()
+		r.stderrLog = append(r.stderrLog, strings.TrimSpace(sc.Text()))
+		if len(r.stderrLog) > 8 {
+			r.stderrLog = r.stderrLog[len(r.stderrLog)-8:]
+		}
+		r.stderrMu.Unlock()
 	}
+}
+
+func (r *Runner) stderrSuffix() string {
+	r.stderrMu.Lock()
+	defer r.stderrMu.Unlock()
+	if len(r.stderrLog) == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (stderr: %s)", strings.Join(r.stderrLog, " | "))
 }
 
 func (r *Runner) wait() {

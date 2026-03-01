@@ -148,6 +148,7 @@ docker run --rm --gpus all joyai/eth-vanity-address:gpu \
 Notes:
 - `-gpu-bin` is optional in GPU images; default worker binary is `vanity-eth-address`.
 - The bundled worker source is AGPL-3.0 licensed (`l3wi/vanity-eth-address`).
+- GPU image currently builds on CUDA 13 runtime.
 
 ## Benchmark
 

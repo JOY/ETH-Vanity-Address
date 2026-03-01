@@ -14,7 +14,7 @@ RUN go build -o /out/eth-vanity .
 ############################
 # STEP 2 build CUDA worker
 ############################
-FROM nvidia/cuda:11.7.1-devel-ubuntu22.04 AS gpu_builder
+FROM nvidia/cuda:13.0.0-devel-ubuntu22.04 AS gpu_builder
 WORKDIR /src
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -26,12 +26,15 @@ RUN mkdir -p /out
 RUN nvcc src/main.cu -o /out/vanity-eth-address \
     -O3 -Xptxas -v \
     -Xcompiler -static-libgcc -Xcompiler -static-libstdc++ \
-    -gencode arch=compute_52,code=compute_52
+    -gencode arch=compute_75,code=sm_75 \
+    -gencode arch=compute_86,code=sm_86 \
+    -gencode arch=compute_89,code=sm_89 \
+    -gencode arch=compute_89,code=compute_89
 
 ############################
 # STEP 3 runtime image
 ############################
-FROM nvidia/cuda:11.7.1-runtime-ubuntu22.04
+FROM nvidia/cuda:13.0.0-runtime-ubuntu22.04
 WORKDIR /
 COPY --from=go_builder /out/eth-vanity /usr/local/bin/eth-vanity
 COPY --from=gpu_builder /out/vanity-eth-address /usr/local/bin/vanity-eth-address

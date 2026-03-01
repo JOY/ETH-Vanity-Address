@@ -29,6 +29,7 @@ type Generator struct {
 
 	isShutdown     atomic.Bool
 	shutdownSignal chan struct{}
+	shutdownOnce   sync.Once
 	shutDownWg     sync.WaitGroup
 }
 
@@ -39,6 +40,12 @@ func New(walletGen wallets.Generator, repo repository.Repository, cfg Config) *G
 		config:         cfg,
 		shutdownSignal: make(chan struct{}),
 	}
+}
+
+func (g *Generator) requestShutdown() {
+	g.shutdownOnce.Do(func() {
+		close(g.shutdownSignal)
+	})
 }
 
 func (g *Generator) Start() (err error) {
@@ -98,7 +105,13 @@ func (g *Generator) Start() (err error) {
 
 				wallet, err := g.walletGen()
 				if err != nil {
-					// Ignore error
+					// Stop early on fatal GPU worker termination to avoid log floods.
+					if strings.Contains(err.Error(), "gpu wallet stream closed") || strings.Contains(err.Error(), "gpu process exited") {
+						log.Printf("[ERROR] fatal generator error: %+v\n", err)
+						g.requestShutdown()
+						return
+					}
+					// Ignore non-fatal error
 					log.Printf("[ERROR] failed to generate wallet: %+v\n", err)
 					continue
 				}
@@ -128,8 +141,8 @@ mainloop:
 		select {
 		case <-g.shutdownSignal:
 			break mainloop
-		default:
-			commands <- struct{}{}
+		case commands <- struct{}{}:
+			// submitted
 		}
 	}
 
@@ -142,9 +155,7 @@ func (g *Generator) Shutdown() (err error) {
 	if g.isShutdown.Load() {
 		return nil
 	}
-	go func() {
-		g.shutdownSignal <- struct{}{}
-	}()
+	g.requestShutdown()
 	g.shutDownWg.Wait()
 	return nil
 }
