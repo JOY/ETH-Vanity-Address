@@ -159,8 +159,6 @@ func main() {
 	}
 	contains := strings.Split(*contain, ",")
 	*prefix = utils.Add0xPrefix(*prefix)
-	gpuHandlesPrefix := false
-	gpuHandlesSuffix := false
 	if strings.EqualFold(*engineName, "gpu") {
 		args := strings.Fields(strings.TrimSpace(*gpuArgs))
 		hasPrefixArg := hasAnyArg(args, "-p", "--prefix")
@@ -168,17 +166,9 @@ func main() {
 
 		if *prefix != "" && !hasPrefixArg {
 			args = append(args, "-p", strings.TrimPrefix(strings.TrimPrefix(*prefix, "0x"), "0X"))
-			gpuHandlesPrefix = true
 		}
 		if *suffix != "" && !hasSuffixArg {
 			args = append(args, "-s", strings.TrimPrefix(strings.TrimPrefix(*suffix, "0x"), "0X"))
-			gpuHandlesSuffix = true
-		}
-		if hasPrefixArg {
-			gpuHandlesPrefix = true
-		}
-		if hasSuffixArg {
-			gpuHandlesSuffix = true
 		}
 		*gpuArgs = strings.Join(args, " ")
 	}
@@ -199,13 +189,13 @@ func main() {
 			}
 		}
 
-		if *prefix != "" && !gpuHandlesPrefix {
+		if *prefix != "" {
 			if !strings.HasPrefix(address, *prefix) {
 				isValid = false
 			}
 		}
 
-		if *suffix != "" && !gpuHandlesSuffix {
+		if *suffix != "" {
 			if !strings.HasSuffix(address, *suffix) {
 				isValid = false
 			}
