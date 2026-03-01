@@ -20,6 +20,7 @@ import (
 
 	"github.com/planxnx/ethereum-wallet-generator/internal/encryption"
 	"github.com/planxnx/ethereum-wallet-generator/internal/generators"
+	"github.com/planxnx/ethereum-wallet-generator/internal/gpu"
 	"github.com/planxnx/ethereum-wallet-generator/internal/progressbar"
 	"github.com/planxnx/ethereum-wallet-generator/internal/repository"
 	"github.com/planxnx/ethereum-wallet-generator/utils"
@@ -62,6 +63,9 @@ func main() {
 	isDryrun := flag.Bool("dryrun", false, "generate wallet without a result (used for benchmark speed)")
 	isCompatible := flag.Bool("compatible", false, "logging compatible mode (turn this on to fix logging glitch)")
 	mode := flag.Int("mode", 1, "wallet generate mode [1: normal mode, 2: only private key mode(generate only privatekey, this fastest mode)]")
+	engine := flag.String("engine", "cpu", "wallet generation engine [cpu|gpu]")
+	gpuBin := flag.String("gpu-bin", "", "path to external GPU worker binary (required when -engine gpu)")
+	gpuArgs := flag.String("gpu-args", "", "arguments for GPU worker binary, space-delimited (used when -engine gpu)")
 	flag.Parse()
 
 	// Handle decrypt command
@@ -236,11 +240,28 @@ func main() {
 
 	// Wallet generator
 	var walletGenerator wallets.Generator
+	var gpuRunner *gpu.Runner
 	switch *mode {
 	case 1:
+		if strings.EqualFold(*engine, "gpu") {
+			panic("gpu engine currently supports only -mode 2")
+		}
 		walletGenerator = wallets.NewGeneratorMnemonic(*bits)
 	case 2:
-		walletGenerator = wallets.NewGeneratorPrivatekey()
+		if strings.EqualFold(*engine, "gpu") {
+			if strings.TrimSpace(*gpuBin) == "" {
+				panic("missing -gpu-bin when -engine gpu")
+			}
+			args := strings.Fields(strings.TrimSpace(*gpuArgs))
+			var err error
+			gpuRunner, err = gpu.NewRunner(*gpuBin, args)
+			if err != nil {
+				panic(err)
+			}
+			walletGenerator = gpuRunner.Next
+		} else {
+			walletGenerator = wallets.NewGeneratorPrivatekey()
+		}
 	default:
 		panic("Invalid mode. See: https://github.com/Planxnx/ethereum-wallet-generator#Modes")
 	}
@@ -267,6 +288,9 @@ func main() {
 
 		if err := repo.Close(); err != nil {
 			log.Printf("WalletsRepo Close Error: %+v", err)
+		}
+		if gpuRunner != nil {
+			_ = gpuRunner.Close()
 		}
 	}()
 

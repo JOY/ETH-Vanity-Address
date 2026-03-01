@@ -88,6 +88,10 @@ We've provided 2 modes for you to generate wallets.
 - **[1] Normal Mode** - Generate wallets with mnemonic phrase. (default)
 - **[2] Only Private Key Mode⚡️** - Generate wallets with private key only. **Increase speed up to 20x (+100k wallet/sec), but you will not get a mnemonic phrase.**
 
+Engine options:
+- **CPU** (default) - Built-in generator.
+- **GPU (external worker)** - Use `-engine gpu -gpu-bin <path>` to read wallet stream from an external GPU worker process.
+
 ## Usage
 
 ```console
@@ -106,7 +110,16 @@ Usage of ethereum-wallet-generator:
   -dryrun     bool   generate wallet without a result (used for benchmark speed)
   -compatible bool   logging compatible mode (turn this on to fix logging glitch)
   -decrypt    string decrypt encrypted JSON file (e.g., output/wallets.encrypted.json)
+  -engine     string wallet generation engine [cpu|gpu] (default "cpu")
+  -gpu-bin    string path to external GPU worker binary (required when -engine gpu)
+  -gpu-args   string arguments for GPU worker binary, space-delimited (used when -engine gpu)
 ```
+
+GPU mode notes:
+- Currently supports only `-mode 2` (private-key mode).
+- External worker must print one wallet per stdout line:
+  - JSON: `{"address":"0x...","privateKey":"..."}`
+  - or plain text: `<address> <privateKey>`
 
 ## Benchmark
 
