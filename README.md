@@ -109,7 +109,7 @@ Usage of ethereum-wallet-generator:
   -regex      string show only result that was matched with given regex (eg. ^0x99 or ^0x00)
   -dryrun     bool   generate wallet without a result (used for benchmark speed)
   -compatible bool   logging compatible mode (turn this on to fix logging glitch)
-  -decrypt    string decrypt encrypted JSON file (e.g., output/wallets.encrypted.json)
+  -decrypt    string decrypt encrypted JSON file (e.g., output/wallets-20260302-101530.encrypted.json)
   -engine     string wallet generation engine [cpu|gpu] (default "cpu")
   -gpu-bin    string path to external GPU worker binary (optional; defaults to `vanity-eth-address`)
   -gpu-args   string arguments for GPU worker binary, space-delimited (used when -engine gpu)
@@ -320,13 +320,13 @@ $ ethereum-wallet-generator -n 10
 10 / 10 | [██████████████████████████████████████████████████████████████████████████████████████████] | 100.00% | 503 p/s | resovled: 10
 
 Enter password to encrypt wallets: [password hidden]
-Successfully exported 10 wallets to output/wallets.encrypted.json
+Successfully exported 10 wallets to output/wallets-20260302-101530.encrypted.json
 ```
 
 Decrypt the encrypted file:
 
 ```console
-$ ethereum-wallet-generator -decrypt output/wallets.encrypted.json
+$ ethereum-wallet-generator -decrypt output/wallets-20260302-101530.encrypted.json
 Enter password to decrypt: [password hidden]
 Successfully decrypted 10 wallets to output/wallets.json
 ```

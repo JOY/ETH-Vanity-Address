@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -176,7 +177,7 @@ func (r *InMemoryRepository) Close() error {
 	}
 
 	// Write JSON file directly (addresses visible, only PK/mnemonic encrypted)
-	filename := filepath.Join(outputDir, "wallets.encrypted.json")
+	filename := nextEncryptedFilename(outputDir)
 	if err := os.WriteFile(filename, jsonData, 0600); err != nil {
 		return fmt.Errorf("error writing encrypted file: %w", err)
 	}
@@ -188,4 +189,20 @@ func (r *InMemoryRepository) Close() error {
 
 	fmt.Printf("Successfully exported %d wallets to %s\n", len(r.wallets), filename)
 	return nil
+}
+
+func nextEncryptedFilename(outputDir string) string {
+	ts := time.Now().UTC().Format("20060102-150405")
+	base := "wallets-" + ts + ".encrypted.json"
+	filename := filepath.Join(outputDir, base)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return filename
+	}
+
+	for i := 1; ; i++ {
+		alt := filepath.Join(outputDir, "wallets-"+ts+"-"+strconv.Itoa(i)+".encrypted.json")
+		if _, err := os.Stat(alt); os.IsNotExist(err) {
+			return alt
+		}
+	}
 }
