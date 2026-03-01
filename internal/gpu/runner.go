@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,6 +95,8 @@ func (r *Runner) Close() error {
 
 func (r *Runner) readStdout() {
 	sc := bufio.NewScanner(r.out)
+	sc.Split(scanCRLF)
+	sc.Buffer(make([]byte, 0, 64*1024), 2*1024*1024)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		if line == "" {
@@ -108,6 +111,22 @@ func (r *Runner) readStdout() {
 		r.walletCh <- w
 	}
 	close(r.walletCh)
+}
+
+// scanCRLF splits on either '\n' or '\r'. This is needed because some GPU
+// workers print progress with carriage returns (no newline).
+func scanCRLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
+		// Return line up to separator and consume one separator byte.
+		return i + 1, data[:i], nil
+	}
+	if atEOF {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
 }
 
 func (r *Runner) readStderr(stderr io.ReadCloser) {
