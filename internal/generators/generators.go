@@ -61,11 +61,6 @@ func (g *Generator) Start() (err error) {
 	defer func() {
 		_ = bar.Finish()
 
-		if err := g.repo.Close(); err != nil {
-			// Ignore error
-			log.Printf("[ERROR] failed to close repository: %+v\n", err)
-		}
-
 		if w := g.repo.Result(); len(w) > 0 && !g.config.DryRun {
 			col2Name := "Seed"
 			var result strings.Builder

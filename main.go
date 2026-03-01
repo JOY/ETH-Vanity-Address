@@ -159,6 +159,29 @@ func main() {
 	}
 	contains := strings.Split(*contain, ",")
 	*prefix = utils.Add0xPrefix(*prefix)
+	gpuHandlesPrefix := false
+	gpuHandlesSuffix := false
+	if strings.EqualFold(*engineName, "gpu") {
+		args := strings.Fields(strings.TrimSpace(*gpuArgs))
+		hasPrefixArg := hasAnyArg(args, "-p", "--prefix")
+		hasSuffixArg := hasAnyArg(args, "-s", "--suffix")
+
+		if *prefix != "" && !hasPrefixArg {
+			args = append(args, "-p", strings.TrimPrefix(strings.TrimPrefix(*prefix, "0x"), "0X"))
+			gpuHandlesPrefix = true
+		}
+		if *suffix != "" && !hasSuffixArg {
+			args = append(args, "-s", strings.TrimPrefix(strings.TrimPrefix(*suffix, "0x"), "0X"))
+			gpuHandlesSuffix = true
+		}
+		if hasPrefixArg {
+			gpuHandlesPrefix = true
+		}
+		if hasSuffixArg {
+			gpuHandlesSuffix = true
+		}
+		*gpuArgs = strings.Join(args, " ")
+	}
 	validateAddress := func(address string) bool {
 		isValid := true
 		if len(contains) > 0 {
@@ -176,13 +199,13 @@ func main() {
 			}
 		}
 
-		if *prefix != "" {
+		if *prefix != "" && !gpuHandlesPrefix {
 			if !strings.HasPrefix(address, *prefix) {
 				isValid = false
 			}
 		}
 
-		if *suffix != "" {
+		if *suffix != "" && !gpuHandlesSuffix {
 			if !strings.HasSuffix(address, *suffix) {
 				isValid = false
 			}
@@ -268,16 +291,26 @@ func main() {
 		if err := generator.Shutdown(); err != nil {
 			log.Printf("Generator Shutdown Error: %+v", err)
 		}
-
-		if err := repo.Close(); err != nil {
-			log.Printf("WalletsRepo Close Error: %+v", err)
-		}
-		if err := engineInstance.Close(); err != nil {
-			log.Printf("Engine Close Error: %+v", err)
-		}
 	}()
 
 	if err := generator.Start(); err != nil {
 		log.Printf("Generator Error: %+v", err)
 	}
+	if err := engineInstance.Close(); err != nil {
+		log.Printf("Engine Close Error: %+v", err)
+	}
+	if err := repo.Close(); err != nil {
+		log.Printf("WalletsRepo Close Error: %+v", err)
+	}
+}
+
+func hasAnyArg(args []string, keys ...string) bool {
+	for _, a := range args {
+		for _, k := range keys {
+			if a == k {
+				return true
+			}
+		}
+	}
+	return false
 }
