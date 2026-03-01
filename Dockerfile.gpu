@@ -1,0 +1,41 @@
+############################
+# STEP 1 build Go binary
+############################
+FROM golang:1.25 AS go_builder
+WORKDIR /src/build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+RUN go build -o /out/eth-vanity .
+
+############################
+# STEP 2 build CUDA worker
+############################
+FROM nvidia/cuda:11.7.1-devel-ubuntu22.04 AS gpu_builder
+WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# AGPL-3.0 licensed worker source
+RUN git clone --depth 1 https://github.com/l3wi/vanity-eth-address.git worker
+WORKDIR /src/worker
+RUN mkdir -p /out
+RUN nvcc src/main.cu -o /out/vanity-eth-address \
+    -O3 -Xptxas -v \
+    -Xcompiler -static-libgcc -Xcompiler -static-libstdc++ \
+    -gencode arch=compute_52,code=compute_52
+
+############################
+# STEP 3 runtime image
+############################
+FROM nvidia/cuda:11.7.1-runtime-ubuntu22.04
+WORKDIR /
+COPY --from=go_builder /out/eth-vanity /usr/local/bin/eth-vanity
+COPY --from=gpu_builder /out/vanity-eth-address /usr/local/bin/vanity-eth-address
+COPY docker/entrypoint-gpu.sh /usr/local/bin/entrypoint-gpu.sh
+RUN chmod +x /usr/local/bin/entrypoint-gpu.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-gpu.sh"]

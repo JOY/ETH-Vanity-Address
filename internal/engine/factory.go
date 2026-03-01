@@ -45,7 +45,8 @@ func New(cfg Config) (*Instance, error) {
 	case 2:
 		if engineName == "gpu" {
 			if strings.TrimSpace(cfg.GPUBin) == "" {
-				return nil, fmt.Errorf("missing -gpu-bin when -engine gpu")
+				// Default to bundled worker name available in GPU images.
+				cfg.GPUBin = "vanity-eth-address"
 			}
 			args := strings.Fields(strings.TrimSpace(cfg.GPUArgs))
 			runner, err := gpu.NewRunner(cfg.GPUBin, args)
@@ -64,4 +65,3 @@ func New(cfg Config) (*Instance, error) {
 		return nil, fmt.Errorf("invalid mode. See: https://github.com/Planxnx/ethereum-wallet-generator#Modes")
 	}
 }
-

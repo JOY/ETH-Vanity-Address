@@ -7,8 +7,18 @@ on:
 
 jobs:
   publish:
-    name: Build and Push (Release)
+    name: Build and Push (${{ matrix.variant }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: cpu
+            dockerfile: Dockerfile
+            tag_suffix: ""
+          - variant: gpu
+            dockerfile: Dockerfile.gpu
+            tag_suffix: "-gpu"
     permissions:
       contents: read
       packages: write
@@ -21,19 +31,21 @@ jobs:
         id: prep
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAG_SUFFIX: ${{ matrix.tag_suffix }}
         run: |
           set -eu
           owner_lc="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           image_name="eth-vanity-address"
           version="${GITHUB_REF_NAME:-${GITHUB_SHA::7}}"
+          suffix="${TAG_SUFFIX}"
 
           {
             echo "tags<<EOF"
-            echo "ghcr.io/${owner_lc}/${image_name}:latest"
-            echo "ghcr.io/${owner_lc}/${image_name}:${version}"
+            echo "ghcr.io/${owner_lc}/${image_name}:latest${suffix}"
+            echo "ghcr.io/${owner_lc}/${image_name}:${version}${suffix}"
             if [ -n "${DOCKERHUB_USERNAME}" ]; then
-              echo "docker.io/${DOCKERHUB_USERNAME}/${image_name}:latest"
-              echo "docker.io/${DOCKERHUB_USERNAME}/${image_name}:${version}"
+              echo "docker.io/${DOCKERHUB_USERNAME}/${image_name}:latest${suffix}"
+              echo "docker.io/${DOCKERHUB_USERNAME}/${image_name}:${version}${suffix}"
             fi
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
@@ -77,5 +89,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.prep.outputs.tags }}

@@ -111,7 +111,7 @@ Usage of ethereum-wallet-generator:
   -compatible bool   logging compatible mode (turn this on to fix logging glitch)
   -decrypt    string decrypt encrypted JSON file (e.g., output/wallets.encrypted.json)
   -engine     string wallet generation engine [cpu|gpu] (default "cpu")
-  -gpu-bin    string path to external GPU worker binary (required when -engine gpu)
+  -gpu-bin    string path to external GPU worker binary (optional; defaults to `vanity-eth-address`)
   -gpu-args   string arguments for GPU worker binary, space-delimited (used when -engine gpu)
 ```
 
@@ -129,6 +129,25 @@ ethereum-wallet-generator -mode 2 -engine gpu \
   -gpu-bin /usr/local/bin/vanity-eth-address \
   -gpu-args \"--prefix cafe --device 0\"
 ```
+
+### GPU Docker image (bundled worker)
+
+Build:
+
+```console
+docker build -f Dockerfile.gpu -t joyai/eth-vanity-address:gpu .
+```
+
+Run (NVIDIA runtime required):
+
+```console
+docker run --rm --gpus all joyai/eth-vanity-address:gpu \
+  -mode 2 -engine gpu -gpu-args "--prefix cafe --device 0"
+```
+
+Notes:
+- `-gpu-bin` is optional in GPU images; default worker binary is `vanity-eth-address`.
+- The bundled worker source is AGPL-3.0 licensed (`l3wi/vanity-eth-address`).
 
 ## Benchmark
 

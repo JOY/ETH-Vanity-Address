@@ -64,7 +64,7 @@ func main() {
 	isCompatible := flag.Bool("compatible", false, "logging compatible mode (turn this on to fix logging glitch)")
 	mode := flag.Int("mode", 1, "wallet generate mode [1: normal mode, 2: only private key mode(generate only privatekey, this fastest mode)]")
 	engineName := flag.String("engine", "cpu", "wallet generation engine [cpu|gpu]")
-	gpuBin := flag.String("gpu-bin", "", "path to external GPU worker binary (required when -engine gpu)")
+	gpuBin := flag.String("gpu-bin", "", "path to external GPU worker binary (optional; defaults to vanity-eth-address)")
 	gpuArgs := flag.String("gpu-args", "", "arguments for GPU worker binary, space-delimited (used when -engine gpu)")
 	flag.Parse()
 
