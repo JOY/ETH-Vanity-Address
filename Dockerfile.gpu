@@ -29,7 +29,8 @@ RUN nvcc src/main.cu -o /out/vanity-eth-address \
     -gencode arch=compute_75,code=sm_75 \
     -gencode arch=compute_86,code=sm_86 \
     -gencode arch=compute_89,code=sm_89 \
-    -gencode arch=compute_89,code=compute_89
+    -gencode arch=compute_120,code=sm_120 \
+    -gencode arch=compute_120,code=compute_120
 
 ############################
 # STEP 3 runtime image
