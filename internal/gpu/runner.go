@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/planxnx/ethereum-wallet-generator/wallets"
 )
+
+var legacyGPULineRE = regexp.MustCompile(`Private Key:\s*0x([0-9a-fA-F]{64}).*Address:\s*0x([0-9a-fA-F]{40})`)
 
 type Runner struct {
 	cmd       *exec.Cmd
@@ -72,14 +75,12 @@ func (r *Runner) Next() (*wallets.Wallet, error) {
 }
 
 func (r *Runner) Close() error {
-	var err error
 	r.closeOnce.Do(func() {
 		if r.cmd.Process != nil {
 			_ = r.cmd.Process.Kill()
 		}
-		err = r.cmd.Wait()
 	})
-	return err
+	return nil
 }
 
 func (r *Runner) readStdout() {
@@ -112,6 +113,19 @@ func (r *Runner) wait() {
 }
 
 func parseWalletLine(line string) (*wallets.Wallet, error) {
+	// Support legacy worker output, e.g.
+	// "Elapsed: 000001 Score: 12 Private Key: 0x... Address: 0x..."
+	if m := legacyGPULineRE.FindStringSubmatch(line); len(m) == 3 {
+		address := normalizeAddress(m[2])
+		privateKey := normalizePrivateKey(m[1])
+		if common.IsHexAddress(address) && privateKey != "" {
+			return &wallets.Wallet{
+				Address:    address,
+				PrivateKey: privateKey,
+			}, nil
+		}
+	}
+
 	// Try JSON first.
 	var m map[string]any
 	if err := json.Unmarshal([]byte(line), &m); err == nil {
@@ -172,4 +186,3 @@ func normalizePrivateKey(s string) string {
 	}
 	return s
 }
-

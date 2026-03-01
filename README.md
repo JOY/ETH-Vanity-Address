@@ -120,6 +120,15 @@ GPU mode notes:
 - External worker must print one wallet per stdout line:
   - JSON: `{"address":"0x...","privateKey":"..."}`
   - or plain text: `<address> <privateKey>`
+  - or legacy format: `... Private Key: 0x<64hex> Address: 0x<40hex>`
+
+Example with `l3wi/vanity-eth-address` compatible output:
+
+```console
+ethereum-wallet-generator -mode 2 -engine gpu \
+  -gpu-bin /usr/local/bin/vanity-eth-address \
+  -gpu-args \"--prefix cafe --device 0\"
+```
 
 ## Benchmark
 
