@@ -113,10 +113,19 @@ Usage of ethereum-wallet-generator:
   -engine     string wallet generation engine [cpu|gpu] (default "cpu")
   -gpu-bin    string path to external GPU worker binary (optional; defaults to `vanity-eth-address`)
   -gpu-args   string arguments for GPU worker binary, space-delimited (used when -engine gpu)
+  -output-mode string terminal output mode [safe|full|silent] (default "safe")
+  -output-dir string directory for encrypted export file (in-memory mode) (default "output")
+  -output-name string encrypted export filename; supports {timestamp} token (in-memory mode)
+  -no-export  bool disable encrypted export on exit (in-memory mode)
+  -contract-mode string gpu contract search mode [create|create2|create3] (optional)
+  -contract-bytecode string path to contract bytecode file (required for create2/create3)
+  -contract-address string origin/sender address (required for create2/create3)
+  -contract-deployer string deployer address (required for create3)
 ```
 
 GPU mode notes:
 - Currently supports only `-mode 2` (private-key mode).
+- Progress status shows: `resolved`, `gpu`, `elapsed`, and `eta(exp/p50/p90)` when prefix/suffix + GPU speed are available.
 - External worker must print one wallet per stdout line:
   - JSON: `{"address":"0x...","privateKey":"..."}`
   - or plain text: `<address> <privateKey>`
@@ -128,6 +137,33 @@ Example with `l3wi/vanity-eth-address` compatible output:
 ethereum-wallet-generator -mode 2 -engine gpu \
   -gpu-bin /usr/local/bin/vanity-eth-address \
   -gpu-args \"--prefix cafe --device 0\"
+```
+
+Contract vanity examples (wrapper maps these flags into worker args automatically):
+
+```console
+# CREATE (nonce=0)
+ethereum-wallet-generator -mode 2 -engine gpu \
+  -contract-mode create \
+  -prefix 0x7979 -suffix 7979 \
+  -gpu-args "--device 0"
+
+# CREATE2
+ethereum-wallet-generator -mode 2 -engine gpu \
+  -contract-mode create2 \
+  -contract-bytecode ./bytecode.txt \
+  -contract-address 0x0000000000000000000000000000000000000000 \
+  -prefix 0x7979 \
+  -gpu-args "--device 0"
+
+# CREATE3
+ethereum-wallet-generator -mode 2 -engine gpu \
+  -contract-mode create3 \
+  -contract-bytecode ./bytecode.txt \
+  -contract-address 0x0000000000000000000000000000000000000000 \
+  -contract-deployer 0x0000000000000000000000000000000000000001 \
+  -prefix 0x7979 \
+  -gpu-args "--device 0"
 ```
 
 ### GPU Docker image (bundled worker)
@@ -149,6 +185,7 @@ Notes:
 - `-gpu-bin` is optional in GPU images; default worker binary is `vanity-eth-address`.
 - The bundled worker source is AGPL-3.0 licensed (`l3wi/vanity-eth-address`).
 - GPU image currently builds on CUDA 13 runtime.
+- `-output-mode safe` hides private keys/mnemonics from terminal output (recommended).
 
 ## Benchmark
 

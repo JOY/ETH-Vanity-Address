@@ -8,7 +8,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-const DefaultStandardModeTemplate = `{{counters . }} | {{bar . "" "█" "█" "" "" | rndcolor}} | {{percent . }} | {{speed . }} | {{string . "resolved"}} {{string . "gpu"}}`
+const DefaultStandardModeTemplate = `{{counters . }} | {{bar . "" "█" "█" "" "" | rndcolor}} | {{percent . }} | {{string . "status"}}`
 
 // ProgressBar progress bar interface
 type ProgressBar interface {
@@ -29,10 +29,8 @@ type progressBar struct {
 func NewCompatibleProgressBar(number int) ProgressBar {
 	bar := progressbar.NewOptions(number,
 		progressbar.OptionSetItsString("w"),
-		progressbar.OptionSetPredictTime(true),
-		progressbar.OptionShowIts(),
-		progressbar.OptionShowCount(),
 		progressbar.OptionFullWidth(),
+		progressbar.OptionSetDescription("resolved: 0 | gpu: n/a | elapsed: 0s | eta(exp/p50/p90): n/a"),
 	)
 	_ = bar.RenderBlank()
 	return &progressBar{
@@ -69,7 +67,7 @@ func (bar *progressBar) SetResolved(resolved int) error {
 // SetStatus sets an auxiliary status string (e.g. GPU throughput).
 func (bar *progressBar) SetStatus(status string) error {
 	if bar.StandardMode != nil {
-		return errors.WithStack(bar.StandardMode.Set("gpu", status).Err())
+		return errors.WithStack(bar.StandardMode.Set("status", status).Err())
 	}
 	if bar.CompatibleMode != nil {
 		bar.CompatibleMode.Describe(status)

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,11 +33,31 @@ type EncryptedWallet struct {
 type InMemoryRepository struct {
 	walletsMu sync.Mutex
 	wallets   []*wallets.Wallet
+	config    InMemoryConfig
+}
+
+type InMemoryConfig struct {
+	OutputDir  string
+	OutputName string
+	NoExport   bool
 }
 
 func NewInMemoryRepository() Repository {
+	return NewInMemoryRepositoryWithConfig(InMemoryConfig{})
+}
+
+func NewInMemoryRepositoryWithConfig(cfg InMemoryConfig) Repository {
+	outputDir := strings.TrimSpace(cfg.OutputDir)
+	if outputDir == "" {
+		outputDir = "output"
+	}
 	return &InMemoryRepository{
 		wallets: make([]*wallets.Wallet, 0),
+		config: InMemoryConfig{
+			OutputDir:  outputDir,
+			OutputName: strings.TrimSpace(cfg.OutputName),
+			NoExport:   cfg.NoExport,
+		},
 	}
 }
 
@@ -80,6 +101,10 @@ func (r *InMemoryRepository) Close() error {
 	}()
 
 	if len(r.wallets) == 0 {
+		return nil
+	}
+	if r.config.NoExport {
+		fmt.Printf("Skipped export (no-export enabled). Wallets kept in-memory only: %d\n", len(r.wallets))
 		return nil
 	}
 
@@ -171,13 +196,13 @@ func (r *InMemoryRepository) Close() error {
 	}
 
 	// Create output directory if it doesn't exist
-	outputDir := "output"
+	outputDir := r.config.OutputDir
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
 	// Write JSON file directly (addresses visible, only PK/mnemonic encrypted)
-	filename := nextEncryptedFilename(outputDir)
+	filename := resolveEncryptedFilename(outputDir, r.config.OutputName)
 	if err := os.WriteFile(filename, jsonData, 0600); err != nil {
 		return fmt.Errorf("error writing encrypted file: %w", err)
 	}
@@ -201,6 +226,33 @@ func nextEncryptedFilename(outputDir string) string {
 
 	for i := 1; ; i++ {
 		alt := filepath.Join(outputDir, "wallets-"+ts+"-"+strconv.Itoa(i)+".encrypted.json")
+		if _, err := os.Stat(alt); os.IsNotExist(err) {
+			return alt
+		}
+	}
+}
+
+func resolveEncryptedFilename(outputDir, outputName string) string {
+	name := strings.TrimSpace(outputName)
+	if name == "" {
+		return nextEncryptedFilename(outputDir)
+	}
+
+	// Keep output inside outputDir.
+	name = filepath.Base(name)
+	if !strings.HasSuffix(name, ".encrypted.json") {
+		name += ".encrypted.json"
+	}
+	name = strings.ReplaceAll(name, "{timestamp}", time.Now().UTC().Format("20060102-150405"))
+
+	filename := filepath.Join(outputDir, name)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return filename
+	}
+
+	base := strings.TrimSuffix(name, ".encrypted.json")
+	for i := 1; ; i++ {
+		alt := filepath.Join(outputDir, base+"-"+strconv.Itoa(i)+".encrypted.json")
 		if _, err := os.Stat(alt); os.IsNotExist(err) {
 			return alt
 		}
