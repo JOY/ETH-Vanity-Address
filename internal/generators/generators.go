@@ -16,6 +16,7 @@ import (
 type Config struct {
 	AddresValidator func(address string) bool
 	ProgressBar     progressbar.ProgressBar
+	SpeedProvider   func() string
 	DryRun          bool
 	Concurrency     int
 	Number          int
@@ -126,6 +127,12 @@ func (g *Generator) Start() (err error) {
 				}
 
 				_ = bar.SetResolved(int(resolvedCount.Load()))
+				if g.config.SpeedProvider != nil {
+					speed := strings.TrimSpace(g.config.SpeedProvider())
+					if speed != "" {
+						_ = bar.SetStatus("gpu: " + speed)
+					}
+				}
 				_ = bar.Increment()
 			}
 		}()

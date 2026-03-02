@@ -17,6 +17,7 @@ import (
 )
 
 var legacyGPULineRE = regexp.MustCompile(`Private Key:\s*0x([0-9a-fA-F]{64}).*Address:\s*0x([0-9a-fA-F]{40})`)
+var gpuSpeedRE = regexp.MustCompile(`Total:\s*([0-9]+(?:\.[0-9]+)?)M/s`)
 
 type Runner struct {
 	cmd       *exec.Cmd
@@ -26,6 +27,8 @@ type Runner struct {
 	closeOnce sync.Once
 	stderrMu  sync.Mutex
 	stderrLog []string
+	speedMu   sync.Mutex
+	speed     string
 }
 
 // NewRunner starts an external GPU worker process that continuously prints wallets to stdout.
@@ -95,6 +98,12 @@ func (r *Runner) Close() error {
 	return nil
 }
 
+func (r *Runner) LatestSpeed() string {
+	r.speedMu.Lock()
+	defer r.speedMu.Unlock()
+	return r.speed
+}
+
 func (r *Runner) readStdout() {
 	sc := bufio.NewScanner(r.out)
 	sc.Split(scanCRLF)
@@ -104,6 +113,7 @@ func (r *Runner) readStdout() {
 		if line == "" {
 			continue
 		}
+		r.updateSpeedFromLine(line)
 
 		w, err := parseWalletLine(line)
 		if err != nil {
@@ -116,6 +126,16 @@ func (r *Runner) readStdout() {
 		r.pushErr(fmt.Errorf("gpu stdout scan: %w", err))
 	}
 	close(r.walletCh)
+}
+
+func (r *Runner) updateSpeedFromLine(line string) {
+	m := gpuSpeedRE.FindStringSubmatch(line)
+	if len(m) != 2 {
+		return
+	}
+	r.speedMu.Lock()
+	r.speed = m[1] + " M/s"
+	r.speedMu.Unlock()
 }
 
 // scanCRLF splits on either '\n' or '\r'. This is needed because some GPU

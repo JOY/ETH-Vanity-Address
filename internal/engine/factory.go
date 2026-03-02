@@ -19,6 +19,7 @@ type Config struct {
 type Instance struct {
 	Generate wallets.Generator
 	closeFn  func() error
+	speedFn  func() string
 }
 
 func (i *Instance) Close() error {
@@ -26,6 +27,13 @@ func (i *Instance) Close() error {
 		return nil
 	}
 	return i.closeFn()
+}
+
+func (i *Instance) Speed() string {
+	if i == nil || i.speedFn == nil {
+		return ""
+	}
+	return i.speedFn()
 }
 
 func New(cfg Config) (*Instance, error) {
@@ -56,6 +64,7 @@ func New(cfg Config) (*Instance, error) {
 			return &Instance{
 				Generate: runner.Next,
 				closeFn:  runner.Close,
+				speedFn:  runner.LatestSpeed,
 			}, nil
 		}
 		return &Instance{

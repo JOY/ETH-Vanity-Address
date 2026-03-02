@@ -268,6 +268,7 @@ func main() {
 		generators.Config{
 			AddresValidator: validateAddress,
 			ProgressBar:     bar,
+			SpeedProvider:   engineInstance.Speed,
 			DryRun:          *isDryrun,
 			Concurrency:     *concurrency,
 			Number:          *number,
